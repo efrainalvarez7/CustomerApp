@@ -7,6 +7,8 @@ from keras.preprocessing.text import Tokenizer
 from keras.models import Sequential
 from keras.layers import Dense,LSTM, Embedding
 from pickle import dump,load
+from keras.utils import pad_sequences
+from keras.models import load_model
 
 
 #reading from file
@@ -27,7 +29,7 @@ d = read_file('newJ.txt')
 tokens = seperate_punch(d)
 
 #traning to predict next word, can change the length depending onhow long i want the sentence but must include the + 1
-train_len = 10 + 1
+train_len = 25 + 1
 text_sequences = []
 for i in range(train_len, len(tokens)):
     seq = tokens[i-train_len:i]
@@ -37,7 +39,7 @@ for i in range(train_len, len(tokens)):
 tokenizer = Tokenizer()
 tokenizer.fit_on_texts(text_sequences)
 sequences = tokenizer.texts_to_sequences(text_sequences)
-
+#print(type(tokenizer.index_word))
 
 #size of vocab
 vocabulary_size = len(tokenizer.word_counts)
@@ -65,10 +67,36 @@ def create_model(vocabulary_size,seq_len):
 
     return model
 #call the function
-model=create_model(vocabulary_size + 1,seq_len)
+#model=create_model(vocabulary_size + 1,seq_len)
 
-model.fit(X,y,batch_size=250,epochs=360,verbose=1)
+#model.fit(X,y,batch_size=250,epochs=360,verbose=1)
 
 #savemodel
-model.save('chatbot_model.h5')
-dump(tokenizer,open("myTokenizer", 'wb'))
+#model.save('chatbot_model.h5')
+#dump(tokenizer,open("myTokenizer", 'wb'))
+
+def generate_text(model,tokenizer,seq_len, seed_text, num_gen_words):
+    output_text = []
+    for i in range(num_gen_words):
+        encoded_text = tokenizer.texts_to_sequences([seed_text])[0]
+        pad_encoded = pad_sequences([encoded_text],maxlen=seq_len, truncating = 'pre')
+        pred_word = model.predict(pad_encoded)
+        classes = np.argmax(pred_word,axis=1)
+        output_text.append(classes)
+        for index ,word in tokenizer.index_word.items():
+            if classes == index:
+                outWord = word
+                break
+        seed_text += " "+ outWord
+    return seed_text
+
+seed_text = "what is your name"
+model = load_model('chatbot_model.h5')
+tokenizer = load(open('myTokenizer','rb'))
+spoken = generate_text(model,tokenizer,10,seed_text,num_gen_words=25)
+print(spoken)
+
+######possible improvements maybe to the tokenizer
+###as well as the dataset it needs more training 
+####maybe a different model other than LSMT
+
